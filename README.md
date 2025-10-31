@@ -159,6 +159,14 @@ Las propiedades válidas de columna son:
    - `array`
    - `object-reference`
 
+En el caso de `type: "string"` también:
+
+- `maxLength:Integer` - máximo de longitud de una columna tipo texto.
+
+En el caso de `type: "object-reference"` también:
+
+- `referredTable:String` - **obligatorio**, la tabla referida mediante esta columna.
+
 ## `Flysql.checkSchemaTableValidity(tableId:String, partialSchema:Object)`
 
 Método que comprueba la validez de una tabla del `schema`.
