@@ -1,0 +1,20 @@
+{
+  "name": "@allnulled/flysql",
+  "version": "1.0.0",
+  "description": "",
+  "main": "flysql.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "dev": "npx nodemon -w 'flysql.js' -w 'test/*' -e 'js' -x 'npm test'",
+    "test": "node test.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "better-sqlite3": "^12.4.1",
+    "sqlstring": "^2.3.3"
+  }
+}
