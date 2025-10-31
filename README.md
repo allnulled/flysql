@@ -51,8 +51,6 @@ Proxy para `better-sqlite3` con gestión nuclear de `schema`.
   - [`flysql.fetchSql(sql:String)`](#flysqlfetchsqlsqlstring)
   - [`flysql.reloadSchema()`](#flysqlreloadschema)
 - [API no pública](#api-no-pública)
-  - [`flysql._sqliteTypeFromColumnSchema(columnSchema)`](#flysql_sqlitetypefromcolumnschemacolumnschema)
-  - [`flysql._sqliteCreateTableFromTableSchema(table:String, partialSchema)`](#flysql_sqlitecreatetablefromtableschematablestring-partialschema)
   - [`flysql._addTable(table:String, partialSchema)`](#flysql_addtabletablestring-partialschema)
   - [`flysql._addColumn(table:String, column, partialSchema)`](#flysql_addcolumntablestring-column-partialschema)
   - [`flysql._renameTable(table:String, newName)`](#flysql_renametabletablestring-newname)
@@ -62,6 +60,8 @@ Proxy para `better-sqlite3` con gestión nuclear de `schema`.
   - [`flysql._ensureBasicMetadata()`](#flysql_ensurebasicmetadata)
   - [`flysql._persistSchema()`](#flysql_persistschema)
   - [`flysql._loadSchema()`](#flysql_loadschema)
+  - [`flysql._sqliteTypeFromColumnSchema(columnSchema)`](#flysql_sqlitetypefromcolumnschemacolumnschema)
+  - [`flysql._sqliteCreateTableFromTableSchema(table:String, partialSchema)`](#flysql_sqlitecreatetablefromtableschematablestring-partialschema)
   - [`flysql._sqliteSelectFrom(table)`](#flysql_sqliteselectfromtable)
   - [`flysql._sqliteInsertInto(table:String, columnIds)`](#flysql_sqliteinsertintotablestring-columnids)
   - [`flysql._sqliteInsertValues(registers:Array, columnIds)`](#flysql_sqliteinsertvaluesregistersarray-columnids)
@@ -259,40 +259,127 @@ Método que cierra la base de datos.
 
 ## `flysql.selectMany(table:String, filters:Array)`
 
+Método para extraer filas de una tabla.
+
+El objeto `filters:Object` acepta `Array<Array<String, String, Number|String|Array>>`. Concretamente son objetos así:
+
+```js
+flysql.selectMany("Nombre_de_tabla", [
+  ["columna", "<operador>", "<comparador>"]
+]);
+```
+
+Donde:
+
+- `columna:String`: nombre de la columna de la tabla.
+- `operador:String`: acepta uno de los `Flysql.knownOperators` que son:
+   - `=`: es igual que
+   - `!=`: no es igual que
+   - `<`: es menor que
+   - `<=`: es menor o igual que
+   - `>`: es mayor que
+   - `>=`: es mayor o igual que
+   - `is null`: es nulo
+      - aquí no hay comparador
+   - `is not null`: no es nulo
+      - aquí no hay comparador
+   - `is in`: está entre
+      - aquí el comparador tiene que ser un `Array<String|Number>`
+   - `is not in`: no está entre
+      - aquí el comparador tiene que ser un `Array<String|Number>`
+   - `is like`: es como
+      - aquí el comparador es un `String` que permite el caracter `%` como *cualquier texto*.
+   - `is not like`: no es como
+      - aquí el comparador es un `String` que permite el caracter `%` como *cualquier texto*.
+- `comparador:String|Number|Array`: dependiendo del `operador` acepta unos u otros, y en el caso de `is null` e `is not null` no tiene relevancia este parámetro.
+
 ## `flysql.selectOne(table:String, id:String|Number)`
+
+Método que permite extraer una fila concreta por su columna `id`.
 
 ## `flysql.insertMany(table:String, registers:Array)`
 
+Método que permite insertar varias filas de una llamada.
+
+El parámetro `registers:Array<Object>` acepta solamente un array de nuevas instancias.
+
 ## `flysql.insertOne(table:String, register:Object)`
+
+Método que permite insertar una fila.
+
+El parámetro `register:Object` acepta solamente una nueva instancia.
 
 ## `flysql.updateMany(table:String, filters:Array, values:Object)`
 
+Método que permite cambiar ciertas propiedades de varias filas de una llamada.
+
+El parámetro `filters:Array` funciona igual que con `selectMany`.
+
+El parámetro `values:Object` son las propiedades que se van a cambiar.
+
 ## `flysql.updateOne(table:String, id:String|Number, values:Object)`
+
+Método que permite cambiar ciertas propiedades de una fila.
+
+El parámetro `id:String|Number` es el `id` de la fila.
+
+El parámetro `values:Object` son las propiedades que se van a cambiar.
 
 ## `flysql.deleteMany(table:String, filters:Array)`
 
+Método que permite eliminar varias filas de una llamada.
+
+El parámetro `filters:Array` funciona igual que con `selectMany`.
+
 ## `flysql.deleteOne(table:String, id:String|Number)`
+
+Método que permite eliminar varias filas de una llamada.
+
+El parámetro `id:String|Number` es el `id` de la fila.
 
 ## `flysql.addTable(table:String, partialSchema:Object)`
 
+Método que añade una tabla en el `this.$schema` y sincroniza el `Database_metadata`.
+
+El parámetro `partialSchema:Object` debe coincidir con la estructura que se espera de una tabla. Esto significa que, mínimo, tiene que tener la propiedad `column`.
+
 ## `flysql.addColumn(table:String, column:String, partialSchema:Object)`
+
+Método que añade una columna en el `this.$schema` y sincroniza el `Database_metadata`.
+
+El parámetro `partialSchema:Object` debe coincidir con la estructura que se espera de una columna.
 
 ## `flysql.renameTable(table:String, newName:String)`
 
+Método que cambia el nombre de una tabla en el `this.$schema` y sincroniza el `Database_metadata`.
+
 ## `flysql.renameColumn(table:String, column:String, newName:String)`
+
+Método que cambia el nombre de una columna en el `this.$schema` y sincroniza el `Database_metadata`.
 
 ## `flysql.dropTable(table:String)`
 
+Método que elimina una tabla en el `this.$schema` y sincroniza el `Database_metadata`.
+
 ## `flysql.dropColumn(table:String, column:String)`
+
+Método que elimina una columna en el `this.$schema` y sincroniza el `Database_metadata`.
 
 ## `flysql.insertSql(sql:String)`
 
+Método que permite ejecutar `sql`, orientado a un *insert único o múltiple* y que devuelve el `lastInsertRowid` o identificador de la última fila insertada.
+
 ## `flysql.runSql(sql:String)`
+
+Método que permite ejecutar `sql`, orientado a *múltiples instrucciones sql de una llamada*. No devuelve nada.
 
 ## `flysql.fetchSql(sql:String)`
 
+Método que permite ejecutar `sql`, orientado a un *select* y que devuelve las filas seleccionadas.
+
 ## `flysql.reloadSchema()`
 
+Método que sincroniza el `flysql.$schema` con el `db.schema` de la tabla `Database_metadata`.
 
 # API no pública
 
@@ -300,41 +387,75 @@ Además de estos, hay una serie de métodos pensados para uso privado, pero que 
 
 Estos métodos tienen la peculiaridad de comenzar siempre con `_`.
 
-## `flysql._sqliteTypeFromColumnSchema(columnSchema)`
-
-## `flysql._sqliteCreateTableFromTableSchema(table:String, partialSchema)`
-
 ## `flysql._addTable(table:String, partialSchema)`
+
+Método que añade una tabla con `sql`.
 
 ## `flysql._addColumn(table:String, column, partialSchema)`
 
+Método que añade una columna con `sql`.
+
 ## `flysql._renameTable(table:String, newName)`
+
+Método que renombra una tabla con `sql`.
 
 ## `flysql._renameColumn(table:String, column, newName)`
 
+Método que renombra una columna con `sql`.
+
 ## `flysql._dropTable(table)`
+
+Método que elimina una tabla.
 
 ## `flysql._dropColumn(table:String, column)`
 
+Método que elimina una columna.
+
 ## `flysql._ensureBasicMetadata()`
+
+Método que crea las tablas básicas para que `Flysql` funcione correctamente.
+
+Por ahora, solo es `Database_metadata`.
 
 ## `flysql._persistSchema()`
 
+Método que persiste el `this.$schema` en la tabla `Database_metadata`.
+
 ## `flysql._loadSchema()`
+
+Método que carga el `this.$schema` de la tabla `Database_metadata`.
+
+## `flysql._sqliteTypeFromColumnSchema(columnSchema)`
+
+Método que devuelve el código `sql` correspondiente al tipo de una columna.
+
+## `flysql._sqliteCreateTableFromTableSchema(table:String, partialSchema)`
+
+Método que devuelve el código `sql` correspondiente a la creación de una tabla basándose en su definición del `flysql.$schema`.
 
 ## `flysql._sqliteSelectFrom(table)`
 
+Método que devuelve el código `sql` correspondiente a `SELECT * FROM <tabla>`.
+
 ## `flysql._sqliteInsertInto(table:String, columnIds)`
+
+Método que devuelve el código `sql` correspondiente a `INSERT INTO <tabla>`.
 
 ## `flysql._sqliteInsertValues(registers:Array, columnIds)`
 
+Método que devuelve el código `sql` correspondiente a `VALUES (<fila>), (<fila>), ...`.
+
 ## `flysql._sqliteUpdateSet(table:String, values)`
+
+Método que devuelve el código `sql` correspondiente a `UPDATE <tabla> SET <valores>`.
 
 ## `flysql._sqliteWhere(whereRules, includeWhereKeyword = true)`
 
+Método que devuelve el código `sql` correspondiente a `WHERE <where rules>`.
+
 ## `flysql._sqliteDeleteFrom(table)`
 
-
+Método que devuelve el código `sql` correspondiente a `DELETE FROM <tabla>`.
 
 
 
