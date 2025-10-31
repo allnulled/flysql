@@ -22,8 +22,8 @@ Proxy para `better-sqlite3` con gestión nuclear de `schema`.
   - [`Flysql.escapeId(id:String):String`](#flysqlescapeididstringstring)
   - [`Flysql.escapeValue(value:String|Number):String`](#flysqlescapevaluevaluestringnumberstring)
   - [`Flysql.padLeft(txt:String, len:Number, filler:String = "0"):String`](#flysqlpadlefttxtstring-lennumber-fillerstring--0string)
-  - [`Flysql.normalizeDate(dateObject:Date):String`](#flysqlnormalizedatedateobjectdatestring)
-  - [`Flysql.normalizeMoment(dateObject)`](#flysqlnormalizemomentdateobject)
+  - [`Flysql.fromDateToDateSql(dateObject:Date):String`](#flysqlfromdatetodatesqldateobjectdatestring)
+  - [`Flysql.fromDateToDatetimeSql(dateObject:Date):String`](#flysqlfromdatetodatetimesqldateobjectdatestring)
   - [`Flysql.constructor(options:Object = {}):Flysql`](#flysqlconstructoroptionsobject--flysql)
   - [`flysql.trace(msg:String, argz:Array = [])`](#flysqltracemsgstring-argzarray--)
   - [`flysql.checkInstanceValidity(table:String, item:Object)`](#flysqlcheckinstancevaliditytablestring-itemobject)
@@ -69,6 +69,7 @@ Proxy para `better-sqlite3` con gestión nuclear de `schema`.
   - [`flysql._sqliteWhere(whereRules, includeWhereKeyword = true)`](#flysql_sqlitewherewhererules-includewherekeyword--true)
   - [`flysql._sqliteDeleteFrom(table)`](#flysql_sqlitedeletefromtable)
   - [`flysql._injectDefaultByJs(table:String, rows:Array<Object>)`](#flysql_injectdefaultbyjstablestring-rowsarrayobject)
+  - [`flysql._rehydrateResults(table:String, results:Array<Object>)`](#flysql_rehydrateresultstablestring-resultsarrayobject)
 - [Ejemplo](#ejemplo)
 
 # Instalación
@@ -234,11 +235,11 @@ Método para escapar un valor en `sql`.
 
 Método utilitario para llenar por la izquierda un texto hasta que llegue a cierta longitud.
 
-## `Flysql.normalizeDate(dateObject:Date):String`
+## `Flysql.fromDateToDateSql(dateObject:Date):String`
 
 Método utilitario para transformar objetos `Date` a un formato de fecha (hasta día) homogéneo.
 
-## `Flysql.normalizeMoment(dateObject)`
+## `Flysql.fromDateToDatetimeSql(dateObject:Date):String`
 
 Método utilitario para transformar objetos `Date` a un formato de fecha (hasta milisegundos) homogéneo.
 
@@ -521,6 +522,10 @@ Método que devuelve el código `sql` correspondiente a `DELETE FROM <tabla>`.
 ## `flysql._injectDefaultByJs(table:String, rows:Array<Object>)`
 
 Método que inyecta el valor de la propiedad de columna `defaultByJs:String` a todos los rows del `insertOne` e `insertMany`.
+
+## `flysql._rehydrateResults(table:String, results:Array<Object>)`
+
+Método que cambia los valores tipados por su tipo en `javascript` indicado en el `this.$schema`.
 
 # Ejemplo
 

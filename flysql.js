@@ -72,23 +72,26 @@ const Flysql = class {
     "is not like"
   ];
 
-  static fromDateToDateSql(date) {
-    assertion(date instanceof Date, `Parameter «date» must be an instance of Date on «fromDateToDateSql»`);
-    return date.getFullYear() + "-" +
-      String(date.getMonth() + 1).padStart(2, "0") + "-" +
-      String(date.getDate()).padStart(2, "0");
+
+
+  static fromDateToDateSql(dateObject) {
+    assertion(dateObject instanceof Date, `Parameter «dateObject» must be a Date instance on «normalizeDate»`);
+    const year = this.padLeft(dateObject.getFullYear(), 4, "0");
+    const month = this.padLeft(dateObject.getMonth()+1, 2, "0");
+    const day = this.padLeft(dateObject.getDate(), 2, "0");
+    return `${year}-${month}-${day}`;
   }
 
-  static fromDateToDatetimeSql(date) {
-    assertion(date instanceof Date, `Parameter «date» must be an instance of Date on «fromDateToDatetimeSql»`);
-    return date.getFullYear() + "-" +
-      String(date.getMonth() + 1).padStart(2, "0") + "-" +
-      String(date.getDate()).padStart(2, "0") + " " +
-      String(date.getHours()).padStart(2, "0") + ":" +
-      String(date.getMinutes()).padStart(2, "0") + ":" +
-      String(date.getSeconds()).padStart(2, "0");
+  static fromDateToDatetimeSql(dateObject) {
+    assertion(dateObject instanceof Date, `Parameter «dateObject» must be a Date instance on «normalizeDatetime»`);
+    const year = this.padLeft(dateObject.getFullYear(), 4, "0");
+    const month = this.padLeft(dateObject.getMonth()+1, 2, "0");
+    const day = this.padLeft(dateObject.getDate(), 2, "0");
+    const hour = this.padLeft(dateObject.getHours(), 2, "0");
+    const minute = this.padLeft(dateObject.getMinutes(), 2, "0");
+    const second = this.padLeft(dateObject.getSeconds(), 2, "0");
+    return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
   }
-
 
   static checkSchemaColumnValidity(tableId, columnId, partialSchema) {
     return this.checkSchemaValidity({
@@ -222,26 +225,6 @@ const Flysql = class {
       out = filler + out;
     }
     return out;
-  }
-
-  static normalizeDate(dateObject) {
-    assertion(dateObject instanceof Date, `Parameter «dateObject» must be a Date instance onf «normalizeDate»`);
-    const year = this.padLeft(dateObject.getFullYear(), 4, "0");
-    const month = this.padLeft(dateObject.getMonth(), 2, "0");
-    const day = this.padLeft(dateObject.getDate(), 2, "0");
-    return `${year}/${month}/${day}`;
-  }
-
-  static normalizeMoment(dateObject) {
-    assertion(dateObject instanceof Date, `Parameter «dateObject» must be a Date instance onf «normalizeMoment»`);
-    const year = this.padLeft(dateObject.getFullYear(), 4, "0");
-    const month = this.padLeft(dateObject.getMonth(), 2, "0");
-    const day = this.padLeft(dateObject.getDate(), 2, "0");
-    const hour = this.padLeft(dateObject.getHours(), 4, "0");
-    const minute = this.padLeft(dateObject.getMinutes(), 2, "0");
-    const second = this.padLeft(dateObject.getSeconds(), 2, "0");
-    const millisecond = this.padLeft(dateObject.getMilliseconds(), 3, "0");
-    return `${year}/${month}/${day} ${hour}:${minute}:${second}.${millisecond}`;
   }
 
   copyObject(data) {
@@ -461,6 +444,10 @@ const Flysql = class {
     return this.$database.prepare(sql).all();
   }
 
+  reloadSchema() {
+    this._loadSchema();
+  }
+
   _sqliteTypeFromColumnSchema(columnSchema) {
     switch (columnSchema.type) {
       case "boolean": return "INTEGER";
@@ -585,10 +572,6 @@ const Flysql = class {
     assertion(schemaQuery.length === 1, `Could not reach schema from database on «loadSchema»`);
     const schema = JSON.parse(schemaQuery[0].value);
     this.$schema = schema;
-  }
-
-  reloadSchema() {
-    this._loadSchema();
   }
 
   _sqliteSelectFrom(table) {
