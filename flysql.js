@@ -1,4 +1,3 @@
-const fs = require("fs");
 const path = require("path");
 const sqlite = require("better-sqlite3");
 
@@ -44,9 +43,52 @@ const Flysql = class {
     verbose: (...args) => { },
   };
 
-  static knownTypes = ["boolean", "integer", "float", "string", "object", "array", "object-reference", "array-reference"];
+  static knownTypes = [
+    "boolean",
+    "integer",
+    "real",
+    "string",
+    "blob",
+    "date",
+    "datetime",
+    "object",
+    "array",
+    "object-reference",
+    "array-reference"
+  ];
 
-  static knownOperators = ["<", "<=", ">", ">=", "=", "!=", "is in", "is not in", "is null", "is not null", "is like", "is not like"];
+  static knownOperators = [
+    "<",
+    "<=",
+    ">",
+    ">=",
+    "=",
+    "!=",
+    "is in",
+    "is not in",
+    "is null",
+    "is not null",
+    "is like",
+    "is not like"
+  ];
+
+  static fromDateToDateSql(date) {
+    assertion(date instanceof Date, `Parameter «date» must be an instance of Date on «fromDateToDateSql»`);
+    return date.getFullYear() + "-" +
+      String(date.getMonth() + 1).padStart(2, "0") + "-" +
+      String(date.getDate()).padStart(2, "0");
+  }
+
+  static fromDateToDatetimeSql(date) {
+    assertion(date instanceof Date, `Parameter «date» must be an instance of Date on «fromDateToDatetimeSql»`);
+    return date.getFullYear() + "-" +
+      String(date.getMonth() + 1).padStart(2, "0") + "-" +
+      String(date.getDate()).padStart(2, "0") + " " +
+      String(date.getHours()).padStart(2, "0") + ":" +
+      String(date.getMinutes()).padStart(2, "0") + ":" +
+      String(date.getSeconds()).padStart(2, "0");
+  }
+
 
   static checkSchemaColumnValidity(tableId, columnId, partialSchema) {
     return this.checkSchemaValidity({
@@ -91,9 +133,12 @@ const Flysql = class {
           case "string":
           case "boolean":
           case "integer":
-          case "float":
+          case "real":
+          case "date":
+          case "datetime":
           case "array":
           case "object":
+          case "blob":
             break;
           default:
             throw new Error(`Parameter «schema.tables[${tableId}].columns[${columnId}].type» must be a valid type on «checkSchemaValidity»`);
@@ -107,8 +152,14 @@ const Flysql = class {
   }
 
   static escapeValue(value) {
-    if(typeof value === "number") {
+    if (typeof value === "number") {
       return value;
+    }
+    if (value === null) {
+      return "NULL";
+    }
+    if (typeof value === "object") {
+      return "'" + JSON.stringify(value).replace(/'/g, "''") + "'";
     }
     return "'" + value.replace(/'/g, "''") + "'";
   }
@@ -132,15 +183,15 @@ const Flysql = class {
     assertion(typeof item === "object", `Parameter «item» must be an object on «checkInstanceValidity»`);
     const columnIds = Object.keys(this.$schema.tables[table].columns);
     Iterating_columns:
-    for(let indexColumn=0; indexColumn<columnIds.length; indexColumn++) {
+    for (let indexColumn = 0; indexColumn < columnIds.length; indexColumn++) {
       const columnId = columnIds[indexColumn];
       const columnSchema = this.$schema.tables[table].columns[columnId];
       const hasColumn = columnId in item;
-      if(hasColumn) {
+      if (hasColumn) {
         continue Iterating_columns;
       }
       const missesDefault = !("default" in columnSchema);
-      if(missesDefault) {
+      if (missesDefault) {
         continue Iterating_columns;
       }
       const columnDefault = columnSchema.default;
@@ -152,7 +203,7 @@ const Flysql = class {
 
   static padLeft(txt, len, filler = "0") {
     let out = "" + txt;
-    while(out.length < len) {
+    while (out.length < len) {
       out = filler + out;
     }
     return out;
@@ -189,11 +240,11 @@ const Flysql = class {
     this.constructor.checkSchemaValidity(schema);
     const newSchemaKeys = Object.keys(schema).filter(key => key !== "tables");
     const newSchemaTables = Object.keys(schema.tables || {});
-    for(let indexKeys=0; indexKeys<newSchemaKeys.length; indexKeys++) {
+    for (let indexKeys = 0; indexKeys < newSchemaKeys.length; indexKeys++) {
       const newSchemaKey = newSchemaKeys[indexKeys];
       this.$schema[newSchemaKey] = schema[newSchemaKey];
     }
-    for(let indexTables=0; indexTables<newSchemaTables.length; indexTables++) {
+    for (let indexTables = 0; indexTables < newSchemaTables.length; indexTables++) {
       const newSchemaTable = newSchemaTables[indexTables];
       this._addTable(newSchemaTable, schema.tables[newSchemaTable]);
     }
@@ -225,6 +276,7 @@ const Flysql = class {
     const sqlPart2 = this._sqliteWhere(filters, true);
     const sql = sqlPart1 + sqlPart2;
     const result = this.fetchSql(sql);
+    this._rehydrateResults(table, result);
     return result;
   }
 
@@ -237,7 +289,8 @@ const Flysql = class {
     const sqlPart2 = this._sqliteWhere([["id", "=", id]], true);
     const sql = sqlPart1 + sqlPart2;
     const result = this.fetchSql(sql);
-    if(result.length === 1) {
+    this._rehydrateResults(table, result);
+    if (result.length === 1) {
       return result[0];
     }
     return result;
@@ -290,7 +343,7 @@ const Flysql = class {
     assertion((typeof id === "number") || (typeof id === "string"), `Parameter «id» must be an number or a string on «updateOne»`);
     assertion(typeof values === "object", `Parameter «values» must be an object on «updateOne»`);
     const sqlPart1 = this._sqliteUpdateSet(table, values);
-    const sqlPart2 = this._sqliteWhere([["id","=",id]], true);
+    const sqlPart2 = this._sqliteWhere([["id", "=", id]], true);
     const sql = sqlPart1 + sqlPart2;
     const result = this.runSql(sql);
     return true;
@@ -312,7 +365,7 @@ const Flysql = class {
     assertion(typeof table === "string", `Parameter «table» must be a string on «deleteOne»`);
     assertion((typeof id === "number") || (typeof id === "string"), `Parameter «id» must be a number or a string on «deleteOne»`);
     const sqlPart1 = this._sqliteDeleteFrom(table);
-    const sqlPart2 = this._sqliteWhere([["id","=",id]], true);
+    const sqlPart2 = this._sqliteWhere([["id", "=", id]], true);
     const sql = sqlPart1 + sqlPart2;
     const result = this.runSql(sql);
     return true;
@@ -373,21 +426,21 @@ const Flysql = class {
   }
 
   insertSql(sql) {
-    if(this.$options.traceSql) {
+    if (this.$options.traceSql) {
       console.log("[sql]", sql);
     }
     return this.$database.prepare(sql).run();
   }
 
   runSql(sql) {
-    if(this.$options.traceSql) {
+    if (this.$options.traceSql) {
       console.log("[sql]", sql);
     }
     return this.$database.exec(sql);
   }
 
   fetchSql(sql) {
-    if(this.$options.traceSql) {
+    if (this.$options.traceSql) {
       console.log("[sql]", sql);
     }
     return this.$database.prepare(sql).all();
@@ -397,9 +450,12 @@ const Flysql = class {
     switch (columnSchema.type) {
       case "boolean": return "INTEGER";
       case "integer": return "INTEGER";
-      case "float": return "REAL";
+      case "blob": return "BLOB";
+      case "real": return "REAL";
+      case "date": return "DATE";
+      case "datetime": return "DATETIME";
       case "string": {
-        if(columnSchema.maxLength) {
+        if (columnSchema.maxLength) {
           return `VARCHAR(${columnSchema.maxLength})`;
         }
         return "TEXT";
@@ -415,17 +471,17 @@ const Flysql = class {
   _sqliteCreateTableFromTableSchema(table, partialSchema) {
     const cols = ["id INTEGER PRIMARY KEY AUTOINCREMENT"];
     const columnIds = Object.keys(partialSchema.columns);
-    for(let indexColumn=0; indexColumn<columnIds.length; indexColumn++) {
+    for (let indexColumn = 0; indexColumn < columnIds.length; indexColumn++) {
       const columnId = columnIds[indexColumn];
       const columnSchema = partialSchema.columns[columnId];
       let columnStatement = `${columnId} ${this._sqliteTypeFromColumnSchema(columnSchema)}`;
-      if(columnSchema.unique) {
+      if (columnSchema.unique) {
         columnStatement += ` UNIQUE`;
       }
-      if(columnSchema.nullable !== true) {
+      if (columnSchema.nullable !== true) {
         columnStatement += ` NOT NULL`;
       }
-      if(columnSchema.defaultBySql) {
+      if (columnSchema.defaultBySql) {
         columnStatement += ` DEFAULT ${columnSchema.defaultBySql}`;
       }
       if (columnSchema.type === "object-reference") {
@@ -498,7 +554,7 @@ const Flysql = class {
       );
     `);
     const schemaQuery = this.fetchSql(`SELECT * FROM Database_metadata WHERE name = 'db.schema';`);
-    if(schemaQuery.length === 0) {
+    if (schemaQuery.length === 0) {
       this.runSql(`INSERT INTO Database_metadata (name, value) VALUES ('db.schema', ${this.constructor.escapeValue(JSON.stringify({ tables: {} }))});`);
     }
   }
@@ -532,9 +588,9 @@ const Flysql = class {
     sql += "INSERT INTO ";
     sql += this.constructor.escapeId(table);
     sql += " (";
-    for(let indexColumn=0; indexColumn<columnIds.length; indexColumn++) {
+    for (let indexColumn = 0; indexColumn < columnIds.length; indexColumn++) {
       const columnId = columnIds[indexColumn];
-      if(indexColumn !== 0) {
+      if (indexColumn !== 0) {
         sql += ",";
       }
       sql += "\n  " + this.constructor.escapeId(columnId);
@@ -546,16 +602,16 @@ const Flysql = class {
   _sqliteInsertValues(registers, columnIds) {
     let sql = "";
     sql += " VALUES ";
-    for(let indexRegisters=0; indexRegisters<registers.length; indexRegisters++) {
+    for (let indexRegisters = 0; indexRegisters < registers.length; indexRegisters++) {
       const register = registers[indexRegisters];
-      if(indexRegisters !== 0) {
+      if (indexRegisters !== 0) {
         sql += ", ";
       }
       sql += "(";
-      for(let indexColumns=0; indexColumns<columnIds.length; indexColumns++) {
+      for (let indexColumns = 0; indexColumns < columnIds.length; indexColumns++) {
         const columnId = columnIds[indexColumns];
-        const columnValue = register[columnId] || null;
-        if(indexColumns !== 0) {
+        const columnValue = typeof register[columnId] === "undefined" ? null : register[columnId];
+        if (indexColumns !== 0) {
           sql += ",";
         }
         sql += "\n  " + this.constructor.escapeValue(columnValue);
@@ -572,10 +628,10 @@ const Flysql = class {
     sql += this.constructor.escapeId(table);
     sql += " SET ";
     const columnIds = Object.keys(values);
-    for(let indexColumn=0; indexColumn<columnIds.length; indexColumn++) {
+    for (let indexColumn = 0; indexColumn < columnIds.length; indexColumn++) {
       const columnId = columnIds[indexColumn];
       const columnValue = values[columnId];
-      if(indexColumn !== 0) {
+      if (indexColumn !== 0) {
         sql += ",";
       }
       sql += "\n  ";
@@ -589,39 +645,39 @@ const Flysql = class {
   _sqliteWhere(whereRules, includeWhereKeyword = true) {
     let sql = "";
     assertion(Array.isArray(whereRules), `Parameter «whereRules» must be an array on «_sqliteWhere»`);
-    if(whereRules.length && includeWhereKeyword) {
+    if (whereRules.length && includeWhereKeyword) {
       sql += "\nWHERE ";
     }
-    for(let indexRules=0; indexRules<whereRules.length; indexRules++) {
+    for (let indexRules = 0; indexRules < whereRules.length; indexRules++) {
       const whereRule = whereRules[indexRules];
       assertion(Array.isArray(whereRule), `Parameter «whereRules[${indexRules}]» must be an array on «_sqliteWhere»`);
       assertion(whereRule.length > 2, `Parameter «whereRules[${indexRules}].length» must be greater than 2 on «_sqliteWhere»`);
       const [column, operator, comparator] = whereRule;
-      if(indexRules !== 0) {
+      if (indexRules !== 0) {
         sql += "\n  AND ";
       }
       sql += this.constructor.escapeId(column);
       assertion(this.constructor.knownOperators.indexOf(operator) !== -1, `Parameter «whereRules[${indexRules}][1]» must be a known operator on «_sqliteWhere»`);
-      if(["<","<=",">",">=","=","!="].indexOf(operator) !== -1) {
+      if (["<", "<=", ">", ">=", "=", "!="].indexOf(operator) !== -1) {
         sql += " " + operator + " ";
         sql += this.constructor.escapeValue(comparator);
-      } else if(operator === "is null") {
+      } else if (operator === "is null") {
         sql += " = NULL";
-      } else if(operator === "is not null") {
+      } else if (operator === "is not null") {
         sql += " != NULL";
-      } else if(operator === "is in") {
+      } else if (operator === "is in") {
         sql += " IN ";
         assertion(Array.isArray(comparator), `Parameter «whereRules[${indexRules}][2]» must be an array to work with «is in» operator on «_sqliteWhere»`);
         sql += "(" + comparator.map(val => this.constructor.escapeValue(val)).join(",") + ")";
-      } else if(operator === "is not in") {
+      } else if (operator === "is not in") {
         assertion(Array.isArray(comparator), `Parameter «whereRules[${indexRules}][2]» must be an array to work with «is not in» operator on «_sqliteWhere»`);
         sql += " NOT IN ";
         sql += "(" + comparator.map(val => this.constructor.escapeValue(val)).join(",") + ")";
-      } else if(operator === "is like") {
+      } else if (operator === "is like") {
         sql += " LIKE ";
         assertion(typeof comparator === "string", `Parameter «whereRules[${indexRules}][2]» must be a string to work with «is like» operator on «_sqliteWhere»`);
         sql += this.constructor.escapeValue(comparator);
-      } else if(operator === "is not like") {
+      } else if (operator === "is not like") {
         assertion(typeof comparator === "string", `Parameter «whereRules[${indexRules}][2]» must be a string to work with «is not like» operator on «_sqliteWhere»`);
         sql += " NOT LIKE ";
         sql += this.constructor.escapeValue(comparator);
@@ -641,19 +697,19 @@ const Flysql = class {
     const allColumns = this.$schema.tables[table].columns;
     const columnIds = Object.keys(allColumns);
     const defaultedColumns = [];
-    for(let indexColumn=0; indexColumn<columnIds.length; indexColumn++) {
+    for (let indexColumn = 0; indexColumn < columnIds.length; indexColumn++) {
       const columnId = columnIds[indexColumn];
       const columnMetadata = allColumns[columnId];
-      if(columnMetadata.defaultByJs) {
+      if (columnMetadata.defaultByJs) {
         defaultedColumns.push(columnId);
       }
     }
-    for(let indexRow=0; indexRow<values.length; indexRow++) {
+    for (let indexRow = 0; indexRow < values.length; indexRow++) {
       const row = values[indexRow];
       Iterating_defaults:
-      for(let indexDefaulted=0; indexDefaulted<defaultedColumns.length; indexDefaulted++) {
+      for (let indexDefaulted = 0; indexDefaulted < defaultedColumns.length; indexDefaulted++) {
         const columnId = defaultedColumns[indexDefaulted];
-        if(typeof row[columnId] !== "undefined") {
+        if (typeof row[columnId] !== "undefined") {
           continue Iterating_defaults;
         }
         const columnMetadata = allColumns[columnId];
@@ -667,6 +723,79 @@ const Flysql = class {
         }
       }
     }
+  }
+
+  _rehydrateResults(table, results) {
+    const allColumns = this.$schema.tables[table].columns;
+    const columnIds = Object.keys(allColumns);
+    Hydrate_jsons: {
+      const jsonColumns = [];
+      for (let indexColumn = 0; indexColumn < columnIds.length; indexColumn++) {
+        const columnId = columnIds[indexColumn];
+        const columnMetadata = allColumns[columnId];
+        if (columnMetadata.type === "object") {
+          jsonColumns.push(columnId);
+        } else if (columnMetadata.type === "array") {
+          jsonColumns.push(columnId);
+        }
+      }
+      for (let indexRow = 0; indexRow < results.length; indexRow++) {
+        const row = results[indexRow];
+        for (let indexColumns = 0; indexColumns < jsonColumns.length; indexColumns++) {
+          const columnId = jsonColumns[indexColumns];
+          try {
+            row[columnId] = JSON.parse(row[columnId]);
+          } catch (error) {
+            console.log(`Column «${columnId}» could not be parsed as JSON on index «${indexRow}»`);
+          }
+        }
+      }
+    }
+    Hydrate_dates: {
+      const dateColumns = [];
+      for (let indexColumn = 0; indexColumn < columnIds.length; indexColumn++) {
+        const columnId = columnIds[indexColumn];
+        const columnMetadata = allColumns[columnId];
+        if (columnMetadata.type === "date") {
+          dateColumns.push(columnId);
+        } else if (columnMetadata.type === "datetime") {
+          dateColumns.push(columnId);
+        }
+      }
+      for (let indexRow = 0; indexRow < results.length; indexRow++) {
+        const row = results[indexRow];
+        for (let indexColumns = 0; indexColumns < dateColumns.length; indexColumns++) {
+          const columnId = dateColumns[indexColumns];
+          try {
+            row[columnId] = new Date(row[columnId]);
+          } catch (error) {
+            console.log(`Column «${columnId}» could not be parsed as Date object on index «${indexRow}»`);
+          }
+        }
+      }
+    }
+    Hydrate_booleans: {
+      const booleanColumns = [];
+      for (let indexColumn = 0; indexColumn < columnIds.length; indexColumn++) {
+        const columnId = columnIds[indexColumn];
+        const columnMetadata = allColumns[columnId];
+        if (columnMetadata.type === "boolean") {
+          booleanColumns.push(columnId);
+        }
+      }
+      for (let indexRow = 0; indexRow < results.length; indexRow++) {
+        const row = results[indexRow];
+        for (let indexColumns = 0; indexColumns < booleanColumns.length; indexColumns++) {
+          const columnId = booleanColumns[indexColumns];
+          try {
+            row[columnId] = row[columnId] ? true : false;
+          } catch (error) {
+            console.log(`Column «${columnId}» could not be parsed as boolean object on index «${indexRow}»`);
+          }
+        }
+      }
+    }
+    return results;
   }
 
   _newFunction(args, code) {

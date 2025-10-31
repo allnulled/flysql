@@ -1,4 +1,11 @@
 - [x] Implementar el `defaultByJs`
+- [x] Soporte para todos los tipos posibles comunes en sqlite y mysql:
+- [x] Soporte para hidratar tipos en los `selectOne` y `selectMany`:
+   - `object`
+   - `array`
+   - `date`
+   - `datetime`
+   - `boolean`
 - [ ] Soporte para `array-reference`
    - con tablas pivote automáticas
    - Nombre fijo predecible:
@@ -7,6 +14,3 @@
       - `id_source:Tabla_original`
       - `id_target:Tabla_destino`
       - `sorter:Integer`
-- [ ] Soporte para hidratar tipos en los `selectOne` y `selectMany`:
-   - `object`
-   - `array`

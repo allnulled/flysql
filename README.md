@@ -128,16 +128,25 @@ Tipos válidos de columna.
 
 ```js
 [
-  "boolean",
-  "integer",
-  "float",
-  "string",
-  "object",
-  "array",
-  "object-reference",
-  "array-reference"
+   "boolean",
+   "integer",
+   "real",
+   "string",
+   "blob",
+   "numeric",
+   "date",
+   "datetime",
+   "object",
+   "array",
+   "object-reference"
 ]
 ```
+
+Al ser seleccionados con `selectOne` o `selectMany`:
+
+- los tipo `boolean` serán pasados a `true` o `false`.
+- los tipo `date` y `datetime` serán pasados a objetos `Date`.
+- los tipo `object` y `array` serán pasados a objetos JSON.
 
 ## `Flysql.knownOperators`
 
@@ -183,8 +192,12 @@ Las propiedades válidas de columna son:
 - `type:String` - debe ser uno de los tipos válidos, los `Flysql.knownTypes`, que son:
    - `boolean`
    - `integer`
-   - `float`
+   - `real`
    - `string`
+   - `blob`
+   - `numeric`
+   - `date`
+   - `datetime`
    - `object`
    - `array`
    - `object-reference`
