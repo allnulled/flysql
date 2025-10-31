@@ -1,7 +1,6 @@
 const fs = require("fs");
 const path = require("path");
 const sqlite = require("better-sqlite3");
-const sqlstring = require("sqlstring");
 
 const AssertionError = class extends Error {
   constructor(message) {
@@ -104,7 +103,7 @@ const Flysql = class {
   }
 
   static escapeId(id) {
-    return sqlstring.escapeId(id);
+    return '`' + id.replace(/`/g, "") + '`';
   }
 
   static escapeValue(value) {
@@ -244,11 +243,13 @@ const Flysql = class {
     return result;
   }
 
-  insertMany(table, registers) {
+  insertMany(table, registersOriginal) {
     this.trace("insertMany", [...arguments]);
     assertion(typeof table === "string", `Parameter «table» must be a string on «insertMany»`);
-    assertion(typeof registers === "object", `Parameter «registers» must be an object on «insertMany»`);
-    assertion(Array.isArray(registers), `Parameter «registers» must be an array on «insertMany»`);
+    assertion(typeof registersOriginal === "object", `Parameter «registersOriginal» must be an object on «insertMany»`);
+    assertion(Array.isArray(registersOriginal), `Parameter «registersOriginal» must be an array on «insertMany»`);
+    const registers = this.copyObject(registersOriginal);
+    this._injectDefaultByJs(table, registers);
     const columnIds = Object.keys(registers[0]);
     const sqlPart1 = this._sqliteInsertInto(table, columnIds);
     const sqlPart2 = this._sqliteInsertValues(registers, columnIds);
@@ -257,10 +258,12 @@ const Flysql = class {
     return result.lastInsertRowid;
   }
 
-  insertOne(table, register) {
+  insertOne(table, registerOriginal) {
     this.trace("insertOne", [...arguments]);
     assertion(typeof table === "string", `Parameter «table» must be a string on «insertOne»`);
-    assertion(typeof register === "object", `Parameter «register» must be an object on «insertOne»`);
+    assertion(typeof registerOriginal === "object", `Parameter «registerOriginal» must be an object on «insertOne»`);
+    const register = this.copyObject(registerOriginal);
+    this._injectDefaultByJs(table, [register]);
     const columnIds = Object.keys(register);
     const sqlPart1 = this._sqliteInsertInto(table, columnIds);
     const sqlPart2 = this._sqliteInsertValues([register], columnIds);
@@ -632,6 +635,43 @@ const Flysql = class {
     sql += "DELETE FROM ";
     sql += this.constructor.escapeId(table);
     return sql;
+  }
+
+  _injectDefaultByJs(table, values) {
+    const allColumns = this.$schema.tables[table].columns;
+    const columnIds = Object.keys(allColumns);
+    const defaultedColumns = [];
+    for(let indexColumn=0; indexColumn<columnIds.length; indexColumn++) {
+      const columnId = columnIds[indexColumn];
+      const columnMetadata = allColumns[columnId];
+      if(columnMetadata.defaultByJs) {
+        defaultedColumns.push(columnId);
+      }
+    }
+    for(let indexRow=0; indexRow<values.length; indexRow++) {
+      const row = values[indexRow];
+      Iterating_defaults:
+      for(let indexDefaulted=0; indexDefaulted<defaultedColumns.length; indexDefaulted++) {
+        const columnId = defaultedColumns[indexDefaulted];
+        if(typeof row[columnId] !== "undefined") {
+          continue Iterating_defaults;
+        }
+        const columnMetadata = allColumns[columnId];
+        const columnDefault = columnMetadata.defaultByJs;
+        const defaultCallback = this._newFunction(["row", "index"], columnDefault);
+        try {
+          const output = defaultCallback.call(this, row, indexRow);
+          row[columnId] = output;
+        } catch (error) {
+          console.log("Column configuration «defaultByJs» is throwing an error:", error);
+        }
+      }
+    }
+  }
+
+  _newFunction(args, code) {
+    const callback = new Function(...args, code);
+    return callback;
   }
 
 }

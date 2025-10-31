@@ -8,8 +8,8 @@ module.exports = async function (Flysql) {
 
   const flysql = Flysql.create({
     filename: "test.sqlite",
-    trace: true,
-    traceSql: true
+    trace: false,
+    traceSql: false
   });
   flysql.connect();
   flysql.addSchema({

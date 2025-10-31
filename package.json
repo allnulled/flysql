@@ -14,7 +14,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "better-sqlite3": "^12.4.1",
-    "sqlstring": "^2.3.3"
+    "better-sqlite3": "^12.4.1"
   }
 }

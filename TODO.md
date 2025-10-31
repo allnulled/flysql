@@ -1,0 +1,12 @@
+- [x] Implementar el `defaultByJs`
+- [ ] Soporte para `array-reference`
+   - con tablas pivote automáticas
+   - Nombre fijo predecible:
+      - `<Tabla_original>_x_<columna>`
+   - Campos fijos predecibles:
+      - `id_source:Tabla_original`
+      - `id_target:Tabla_destino`
+      - `sorter:Integer`
+- [ ] Soporte para hidratar tipos en los `selectOne` y `selectMany`:
+   - `object`
+   - `array`

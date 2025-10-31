@@ -68,6 +68,7 @@ Proxy para `better-sqlite3` con gestión nuclear de `schema`.
   - [`flysql._sqliteUpdateSet(table:String, values)`](#flysql_sqliteupdatesettablestring-values)
   - [`flysql._sqliteWhere(whereRules, includeWhereKeyword = true)`](#flysql_sqlitewherewhererules-includewherekeyword--true)
   - [`flysql._sqliteDeleteFrom(table)`](#flysql_sqlitedeletefromtable)
+  - [`flysql._injectDefaultByJs(table:String, rows:Array<Object>)`](#flysql_injectdefaultbyjstablestring-rowsarrayobject)
 - [Ejemplo](#ejemplo)
 
 # Instalación
@@ -126,7 +127,16 @@ Opciones por defecto pasadas al `better-sqlite3`. Las opciones son:
 Tipos válidos de columna.
 
 ```js
-["boolean", "integer", "float", "string", "object", "array", "object-reference", "array-reference"]
+[
+  "boolean",
+  "integer",
+  "float",
+  "string",
+  "object",
+  "array",
+  "object-reference",
+  "array-reference"
+]
 ```
 
 ## `Flysql.knownOperators`
@@ -134,7 +144,20 @@ Tipos válidos de columna.
 Operadores válidos para los filtros en las consultas.
 
 ```js
-["<", "<=", ">", ">=", "=", "!=", "is in", "is not in", "is null", "is not null", "is like", "is not like"]
+[
+  "<",
+  "<=",
+  ">",
+  ">=",
+  "=",
+  "!=",
+  "is in",
+  "is not in",
+  "is null",
+  "is not null",
+  "is like",
+  "is not like"
+]
 ```
 
 ## `Flysql.checkSchemaColumnValidity(tableId:String, columnId:String, partialSchema:Object)`
@@ -150,6 +173,13 @@ Las propiedades válidas de columna son:
 - `defaultBySql:String` - debe ser el código SQL que quieres poner detrás de la instrucción `DEFAULT`.
    - se hace una inyección limpia en este campo.
    - esto significa que si quieres poner un string, debes incluir las comillas.
+- `defaultByJs:String` - debe ser el código JS que quieres usar para inflar el valor de la columna cuando no aparece.
+   - tiene prioridad sobre el valor que se inyectaría desde `defaultBySql`.
+   - debe hacer un `return` con el valor final.
+   - se hace un `new Function(...)` para evaluar el código.
+   - se inyectan los parámetros:
+      - `row:Object`: la row en cuestión.
+      - `index:Number`: el índice de esta row.
 - `type:String` - debe ser uno de los tipos válidos, los `Flysql.knownTypes`, que son:
    - `boolean`
    - `integer`
@@ -465,7 +495,9 @@ Método que devuelve el código `sql` correspondiente a `WHERE <where rules>`.
 
 Método que devuelve el código `sql` correspondiente a `DELETE FROM <tabla>`.
 
+## `flysql._injectDefaultByJs(table:String, rows:Array<Object>)`
 
+Método que inyecta el valor de la propiedad de columna `defaultByJs:String` a todos los rows del `insertOne` e `insertMany`.
 
 # Ejemplo
 
