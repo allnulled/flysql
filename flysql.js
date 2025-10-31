@@ -151,15 +151,30 @@ const Flysql = class {
     return '`' + id.replace(/`/g, "") + '`';
   }
 
-  static escapeValue(value) {
+  static escapeValue(value, table = false, columnId = false) {
     if (typeof value === "number") {
       return value;
     }
     if (value === null) {
       return "NULL";
     }
+    if(typeof value === "object") {
+      if(value instanceof Date) {
+        if(table && columnId) {
+          const valueType = this.$schema.tables[table].columns[columnId].type;
+          if(valueType === "date") {
+            return this.fromDateToDateSql(value);
+          } else if(valueType === "datetime") {
+            return this.fromDateToDatetimeSql(value);
+          }
+        }
+      }
+    }
     if (typeof value === "object") {
       return "'" + JSON.stringify(value).replace(/'/g, "''") + "'";
+    }
+    if(typeof value === "boolean") {
+      return value ? 1 : 0;
     }
     return "'" + value.replace(/'/g, "''") + "'";
   }
@@ -305,7 +320,7 @@ const Flysql = class {
     this._injectDefaultByJs(table, registers);
     const columnIds = Object.keys(registers[0]);
     const sqlPart1 = this._sqliteInsertInto(table, columnIds);
-    const sqlPart2 = this._sqliteInsertValues(registers, columnIds);
+    const sqlPart2 = this._sqliteInsertValues(registers, columnIds, table);
     const sql = sqlPart1 + sqlPart2;
     const result = this.insertSql(sql);
     return result.lastInsertRowid;
@@ -319,7 +334,7 @@ const Flysql = class {
     this._injectDefaultByJs(table, [register]);
     const columnIds = Object.keys(register);
     const sqlPart1 = this._sqliteInsertInto(table, columnIds);
-    const sqlPart2 = this._sqliteInsertValues([register], columnIds);
+    const sqlPart2 = this._sqliteInsertValues([register], columnIds, table);
     const sql = sqlPart1 + sqlPart2;
     const result = this.insertSql(sql);
     return result.lastInsertRowid;
@@ -599,7 +614,7 @@ const Flysql = class {
     return sql;
   }
 
-  _sqliteInsertValues(registers, columnIds) {
+  _sqliteInsertValues(registers, columnIds, table) {
     let sql = "";
     sql += " VALUES ";
     for (let indexRegisters = 0; indexRegisters < registers.length; indexRegisters++) {
@@ -614,7 +629,7 @@ const Flysql = class {
         if (indexColumns !== 0) {
           sql += ",";
         }
-        sql += "\n  " + this.constructor.escapeValue(columnValue);
+        sql += "\n  " + this.constructor.escapeValue(columnValue, table, columnId);
       }
       sql += "\n)";
     }
@@ -637,7 +652,7 @@ const Flysql = class {
       sql += "\n  ";
       sql += this.constructor.escapeId(columnId);
       sql += " = ";
-      sql += this.constructor.escapeValue(columnValue);
+      sql += this.constructor.escapeValue(columnValue, table, columnId);
     }
     return sql;
   }

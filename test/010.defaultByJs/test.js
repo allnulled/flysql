@@ -36,7 +36,7 @@ module.exports = async function (Flysql) {
   assertion(allItems[2].value === "none");
   assertion(allItems[3].value === "something");
 
-  console.log("[*] Completado test: 011.datatypes");
+  console.log("[*] Completado test: 010.defaultByJs");
 
 };
 

@@ -32,14 +32,14 @@ module.exports = async function (Flysql) {
   });
   
   const item1 = flysql.insertOne("Random_item", {
-    booleanType: 0,
+    booleanType: false,
     stringType: "texto",
     textType: "texto",
     integerType: 1,
     realType: 1.55,
     blobType: "texto binario",
-    dateType: "2025-01-01",
-    datetimeType: "2025-01-01 00:00:00",
+    dateType: new Date("2025-01-01"),
+    datetimeType: new Date("2025-01-01 00:00:00"),
     objectType: {ok:200,message:"whatever intercaling ' quotes ' and ''two simple quotes''"},
     arrayType: [5,4,3,{message:"whatever"}],
   });
@@ -62,6 +62,6 @@ module.exports = async function (Flysql) {
   assertion(item1data.arrayType[1] === 4);
   assertion(item1data.arrayType[2] === 3);
 
-  console.log("[*] Completado test: 010.defaultByJs");
+  console.log("[*] Completado test: 011.datatypes");
 
 };
